@@ -9,21 +9,17 @@ import SwiftUI
 import MapKit
 //import CoreLocation
 
-struct ContentView: View {
+struct MapiView: View {
     
     let ADA = CLLocationCoordinate2D(latitude: -6.3020086989578905, longitude: 106.65259438562504)
     
     let home = CLLocationCoordinate2D(latitude: -6.203975397400462, longitude: 106.7119072702203)
     
     let mam = CLLocationCoordinate2D(latitude: -6.2712081003800755,longitude: 106.6218107142091)
-    
-    let locationManager = CLLocationManager()
-    
-    @State var camera: MapCameraPosition = .automatic
-    @State var route: MKRoute?
+    @StateObject private var viewModel = MapiViewModel()
     
     var body: some View {
-        Map(position: $camera){
+        Map(position: $viewModel.camera){
             Annotation("Apple Dev", coordinate: ADA){
                 Image(systemName: "briefcase")
                     .foregroundStyle(.white)
@@ -31,7 +27,7 @@ struct ContentView: View {
                     .background(.blue)
                     .contextMenu {
                         Button("Get Direction", systemImage: "road.lanes"){
-                            getDirections(to: ADA)
+                            viewModel.getDirections(to: ADA)
                         }
                     }
                 
@@ -45,7 +41,7 @@ struct ContentView: View {
                     .background(.vece)
                     .contextMenu {
                         Button("Get Direction", systemImage: "road.lanes"){
-                            getDirections(to: home)
+                            viewModel.getDirections(to: home)
                         }
                     }
             }
@@ -57,20 +53,17 @@ struct ContentView: View {
                     .background(.red)
                     .contextMenu {
                         Button("Get Direction", systemImage: "road.lanes") {
-                            getDirections(to: mam)
+                            viewModel.getDirections(to: mam)
                         }
                     }
             
             }
             UserAnnotation()
-            if let route{
+            if let route = viewModel.route{
                 MapPolyline(route)
                     .stroke(Color.blue, lineWidth: 4)
             }
             
-        }
-        .onAppear {
-            locationManager.requestWhenInUseAuthorization()
         }
         .mapControls{
             MapUserLocationButton()
@@ -84,16 +77,12 @@ struct ContentView: View {
             HStack{
                 Spacer()
                 Button {
-                    camera = .region(
-                        MKCoordinateRegion(center: home, latitudinalMeters: 200, longitudinalMeters: 200)
-                    )
+                    viewModel.moveCamera(to: home)
                 } label:{
                     Text("Home")
                 }
                 Button {
-                    camera = .region(
-                        MKCoordinateRegion(center: ADA, latitudinalMeters: 200, longitudinalMeters: 200)
-                    )
+                    viewModel.moveCamera(to: ADA)
                 } label:{
                     Text("Work")
                 }
@@ -105,38 +94,8 @@ struct ContentView: View {
         }
         
     }
-    
-    func getUserLocation() async -> CLLocationCoordinate2D?{
-        let updates = CLLocationUpdate.liveUpdates()
-        
-        do{
-            let update = try await updates.first{$0.location?.coordinate != nil}
-            return update?.location?.coordinate
-        } catch {
-            print("Cannot get user location")
-            return nil
-        }
-    }
-    
-    func getDirections(to destination: CLLocationCoordinate2D){
-        Task{
-            guard let userLocation = await getUserLocation() else {return}
-            let request = MKDirections.Request()
-            request.source = MKMapItem(placemark: .init(coordinate: userLocation))
-            request.destination = MKMapItem(placemark: .init(coordinate: destination))
-            request.transportType = .automobile
-            
-            do {
-                let directions = try await MKDirections(request: request).calculate()
-                route = directions.routes.first
-            } catch {
-                print ("Error calculating directions")
-            }
-            
-        }
-    }
 }
 
 #Preview {
-    ContentView()
+    MapiView()
 }
